@@ -3,6 +3,8 @@ package com.example.microservicesinactionbook;
 import com.example.microservicesinactionbook.domain.Multiplication;
 import com.example.microservicesinactionbook.domain.MultiplicationResultAttempt;
 import com.example.microservicesinactionbook.domain.User;
+import com.example.microservicesinactionbook.event.EventDispatcher;
+import com.example.microservicesinactionbook.event.MultiplicationSolvedEvent;
 import com.example.microservicesinactionbook.repository.MultiplicationResultAttemptRepository;
 import com.example.microservicesinactionbook.repository.UserRepository;
 import com.example.microservicesinactionbook.service.MultiplicationService;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -33,11 +36,14 @@ public class MultiplicationServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private EventDispatcher eventDispatcher;
+
     @Before
     public void setUp() {
         //tell mockito process annotations
         MockitoAnnotations.initMocks(this);
-        multiplicationService = new MultiplicationServiceImpl(randomGeneratorService, attemptRepository, userRepository);
+        multiplicationService = new MultiplicationServiceImpl(randomGeneratorService, attemptRepository, userRepository, eventDispatcher);
     }
 
     @Test
@@ -58,10 +64,10 @@ public class MultiplicationServiceImplTest {
     public void checkCorrectAttemptsTest() {
         //given
         Multiplication multiplication = new Multiplication(50, 60);
-
         User user = new User("test_usr");
         MultiplicationResultAttempt attempt = new MultiplicationResultAttempt(user, multiplication, 3000, false);
         MultiplicationResultAttempt verifiedAttempt = new MultiplicationResultAttempt(user, multiplication, 3000, true);
+        MultiplicationSolvedEvent event = new MultiplicationSolvedEvent(attempt.getId(), attempt.getUser().getId(), true);
 
         given(userRepository.findByAlias("test_usr")).willReturn(Optional.empty());
 
@@ -71,6 +77,7 @@ public class MultiplicationServiceImplTest {
         //assert
         assertThat(attemptResult).isTrue();
         verify(attemptRepository).save(verifiedAttempt);
+        verify(eventDispatcher).send(eq(event));
     }
 
     @Test
@@ -79,6 +86,7 @@ public class MultiplicationServiceImplTest {
         Multiplication multiplication = new Multiplication(50, 60);
         User user = new User("test_usr");
         MultiplicationResultAttempt attempt = new MultiplicationResultAttempt(user, multiplication, 3010, false);
+        MultiplicationSolvedEvent event = new MultiplicationSolvedEvent(attempt.getId(), attempt.getUser().getId(), false);
 
         given(userRepository.findByAlias("test_usr")).willReturn(Optional.empty());
 
@@ -88,6 +96,7 @@ public class MultiplicationServiceImplTest {
         //assert
         assertThat(attemptResult).isFalse();
         verify(attemptRepository).save(attempt);
+        verify(eventDispatcher).send(eq(event));
     }
 
     @Test
@@ -95,18 +104,8 @@ public class MultiplicationServiceImplTest {
         //given
         Multiplication multiplication = new Multiplication(50, 60);
         User user = new User("test_usr");
-        MultiplicationResultAttempt attempt1 = new MultiplicationResultAttempt(
-                user,
-                multiplication,
-                3010,
-                false);
-
-        MultiplicationResultAttempt attempt2 = new MultiplicationResultAttempt(
-                user,
-                multiplication,
-                3051,
-                false);
-
+        MultiplicationResultAttempt attempt1 = new MultiplicationResultAttempt(user, multiplication, 3010, false);
+        MultiplicationResultAttempt attempt2 = new MultiplicationResultAttempt(user, multiplication, 3051, false);
         List<MultiplicationResultAttempt> latestAttempts = Lists.newArrayList(attempt1, attempt2);
 
         given(userRepository.findByAlias("test_usr")).willReturn(Optional.empty());
