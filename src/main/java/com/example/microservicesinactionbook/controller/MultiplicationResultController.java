@@ -7,10 +7,9 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/results")
@@ -30,9 +29,22 @@ final public class MultiplicationResultController {
     }
 
     @PostMapping
-    ResponseEntity<ResultResponse> postResult(@RequestBody MultiplicationResultAttempt attempt) {
-        return ResponseEntity.ok(
-                new ResultResponse(multiplicationService.checkAttempt(attempt))
+    ResponseEntity<MultiplicationResultAttempt> postResult(@RequestBody MultiplicationResultAttempt attempt) {
+        boolean isCorrect = multiplicationService.checkAttempt(attempt);
+        MultiplicationResultAttempt multiplicationResultAttempt = new MultiplicationResultAttempt(
+                attempt.getUser(),
+                attempt.getMultiplication(),
+                attempt.getResultAttempt(),
+                isCorrect
         );
+
+        return ResponseEntity.ok(multiplicationResultAttempt);
     }
+
+    @GetMapping
+    ResponseEntity<List<MultiplicationResultAttempt>> getStatistics(@RequestParam("alias") String alias){
+        return ResponseEntity.ok(multiplicationService.getStatsForUser(alias));
+    }
+
+
 }
